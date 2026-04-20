@@ -252,10 +252,19 @@
 
       <section id="settingsView" class="view">
         <div class="card">
-          <div class="section-title">データ管理</div>
+          <div class="section-head wrap">
+            <div class="section-title">データ管理</div>
+            <span class="badge">移行対応</span>
+          </div>
           <div class="stack">
             <button id="backupBtn" class="secondary wide">JSONバックアップを書き出す</button>
-            <label class="file-upload"><input type="file" id="restoreInput" accept=".json,application/json"><span>JSONバックアップを復元</span></label>
+            <label class="file-upload"><input type="file" id="restoreInput" accept=".json,application/json"><span>JSONバックアップを復元（全置換）</span></label>
+            <label class="file-upload"><input type="file" id="migrationInput" accept=".json,application/json"><span>既存帳簿の移行JSONを読み込む</span></label>
+            <div id="migrationPreview" class="stack small migration-preview"></div>
+            <div class="inline-actions wrap">
+              <button id="migrationReplaceBtn" class="secondary" type="button">現在データを置換して移行</button>
+              <button id="migrationMergeBtn" class="ghost" type="button">現在データへ追加して移行</button>
+            </div>
             <button id="inventoryCsvBtn" class="secondary wide">在庫CSVを書き出す</button>
             <button id="salesCsvBtn" class="secondary wide">売上CSVを書き出す</button>
             <button id="expensesCsvBtn" class="secondary wide">経費CSVを書き出す</button>

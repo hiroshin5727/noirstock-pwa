@@ -1,4 +1,4 @@
-const CACHE = 'noirstock-cache-v3';
+const CACHE = 'noirstock-cache-v4-ghpages';
 const ASSETS = [
   './',
   './index.html',

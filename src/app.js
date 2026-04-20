@@ -7,7 +7,7 @@ import {
 
 const state = {
   inventory: [], sales: [], expenses: [], currentView: 'home', deferredPrompt: null,
-  pendingInventoryPhoto: null, pendingSaleProof: null, carryoverData: null
+  pendingInventoryPhoto: null, pendingSaleProof: null, carryoverData: null, migrationData: null
 };
 
 const DRAFT_KEYS = {
@@ -677,13 +677,96 @@ function exportBackup() {
 
 async function importBackup(file) {
   const text = await file.text();
-  const data = JSON.parse(text);
-  await bulkReplace({
-    inventory: data.inventory || [], sales: data.sales || [], expenses: data.expenses || [], settings: data.settings || []
-  });
+  const data = normalizeImportData(JSON.parse(text));
+  await bulkReplace(data);
   await loadState();
   refreshAll();
   toast('バックアップを復元しました');
+}
+
+
+function normalizeImportData(raw) {
+  const data = raw && typeof raw === 'object' ? raw : {};
+  return {
+    inventory: Array.isArray(data.inventory) ? data.inventory : [],
+    sales: Array.isArray(data.sales) ? data.sales : [],
+    expenses: Array.isArray(data.expenses) ? data.expenses : [],
+    settings: Array.isArray(data.settings) ? data.settings : []
+  };
+}
+
+function inferYearRange(data) {
+  const years = [];
+  [...(data.inventory || []), ...(data.sales || []), ...(data.expenses || [])].forEach((row) => {
+    const date = row.saleDate || row.purchaseDate || row.date || '';
+    const year = yearFromDateString(date);
+    if (year) years.push(year);
+  });
+  if (!years.length) return '年情報なし';
+  return `${Math.min(...years)}〜${Math.max(...years)}年`;
+}
+
+function renderMigrationPreview() {
+  const wrap = qs('#migrationPreview');
+  const data = state.migrationData?.data;
+  if (!data) {
+    wrap.innerHTML = '<div class="muted">移行用JSONを選ぶと、件数と対象年をここに表示します。</div>';
+    return;
+  }
+  const yearLabel = inferYearRange(data);
+  wrap.innerHTML = `
+    <div class="list-item">
+      <div class="row"><strong>${escapeHtml(state.migrationData.fileName || '移行JSON')}</strong><span class="badge">${yearLabel}</span></div>
+      <div class="muted">在庫 ${data.inventory.length}件 / 販売 ${data.sales.length}件 / 経費 ${data.expenses.length}件</div>
+    </div>
+    <div class="muted">置換は現在データをすべて入れ替えます。追加は現在データを残したまま、ID衝突を避けて取り込みます。</div>
+  `;
+}
+
+function cloneWithUniqueId(row, prefix, usedIds, remap = null, refField = '') {
+  const cloned = { ...row };
+  const oldId = cloned.id || uid(prefix);
+  let newId = oldId;
+  while (usedIds.has(newId)) newId = uid(prefix);
+  usedIds.add(newId);
+  cloned.id = newId;
+  if (remap) remap.set(oldId, newId);
+  if (refField && cloned[refField] && remap?.has(cloned[refField])) cloned[refField] = remap.get(cloned[refField]);
+  return cloned;
+}
+
+async function runMigrationImport(mode = 'replace') {
+  const data = state.migrationData?.data;
+  if (!data) { toast('先に移行JSONを選択してください'); return; }
+  const normalized = normalizeImportData(data);
+  if (mode === 'replace') {
+    await bulkReplace(normalized);
+  } else {
+    const current = await exportAll();
+    const invIds = new Set((current.inventory || []).map((r) => r.id));
+    const saleIds = new Set((current.sales || []).map((r) => r.id));
+    const expIds = new Set((current.expenses || []).map((r) => r.id));
+    const inventoryIdRemap = new Map();
+    const importedInventory = normalized.inventory.map((row) => cloneWithUniqueId(row, 'inv', invIds, inventoryIdRemap));
+    const importedSales = normalized.sales.map((row) => {
+      const cloned = { ...row };
+      if (cloned.inventoryId && inventoryIdRemap.has(cloned.inventoryId)) cloned.inventoryId = inventoryIdRemap.get(cloned.inventoryId);
+      return cloneWithUniqueId(cloned, 'sale', saleIds);
+    });
+    const importedExpenses = normalized.expenses.map((row) => cloneWithUniqueId(row, 'exp', expIds));
+    await bulkReplace({
+      inventory: [...(current.inventory || []), ...importedInventory],
+      sales: [...(current.sales || []), ...importedSales],
+      expenses: [...(current.expenses || []), ...importedExpenses],
+      settings: current.settings || []
+    });
+  }
+  state.migrationData = null;
+  qs('#migrationInput').value = '';
+  await loadState();
+  await refreshAll();
+  renderMigrationPreview();
+  toast(mode === 'replace' ? '移行データを取り込みました' : '移行データを追加取り込みしました');
 }
 
 function buildCarryoverPreview(data, sourceYear, targetYear) {
@@ -837,6 +920,20 @@ function bindButtons() {
     const file = e.target.files?.[0]; if (!file) return;
     openConfirm({ title: 'バックアップを復元', message: '現在のデータを置き換えます。続けますか？', okText: '復元', onOk: () => importBackup(file) });
   });
+  qs('#migrationInput').addEventListener('change', async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    try {
+      const text = await file.text();
+      state.migrationData = { fileName: file.name, data: normalizeImportData(JSON.parse(text)) };
+      renderMigrationPreview();
+      toast('移行JSONを読み込みました');
+    } catch (error) {
+      console.error(error);
+      toast('移行JSONの読み込みに失敗しました');
+    }
+  });
+  qs('#migrationReplaceBtn').onclick = () => openConfirm({ title: '移行データで置換', message: '現在の在庫・販売・経費データを置き換えます。続けますか？', okText: '置換', onOk: () => runMigrationImport('replace') });
+  qs('#migrationMergeBtn').onclick = () => openConfirm({ title: '移行データを追加', message: '現在のデータを残したまま追加します。重複しそうなIDは自動で調整します。', okText: '追加', onOk: () => runMigrationImport('merge') });
 
   qs('#summaryYearSelect').addEventListener('change', renderSummary);
   qs('#saleForm').addEventListener('input', renderSalePreview);
@@ -868,6 +965,7 @@ async function boot() {
   bindDraft('#expenseForm', DRAFT_KEYS.expense);
   await loadState();
   resetInventoryForm(true); resetSaleForm(true); resetExpenseForm(true);
+  renderMigrationPreview();
   await syncInventoryStatuses();
   await refreshAll();
 }
