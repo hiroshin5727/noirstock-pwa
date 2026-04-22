@@ -1,41 +1,19 @@
-const CACHE = 'noirstock-cache-v4-ghpages';
-const ASSETS = [
-  './',
-  './index.html',
-  './src/styles.css',
-  './src/app.js',
-  './src/db.js',
-  './src/utils.js',
-  './manifest.webmanifest',
-  './assets/icon-192.png',
-  './assets/icon-512.png',
-  './assets/apple-touch-icon.png'
-];
+# NoirStock PWA v5
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
-  self.skipWaiting();
-});
+UI刷新版の実装です。
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
-  );
-  self.clients.claim();
-});
+## この版で実装したもの
+- 黒基調の高忠実度UIへ刷新
+- ホーム / 在庫 / 登録 / 販売 / 分析 の5タブ構成
+- 在庫一覧カードの強化
+- ステータス変更から販売入力への導線
+- 販売入力（OCR）画面のUI刷新
+- 分析画面のKPI / 推移 / 販売先別利益の可視化
+- 既存の JSON バックアップ / 移行 / 繰越 / CSV 出力は維持
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match('./index.html'));
-    })
-  );
-});
+## GitHub Pages への反映
+1. この ZIP を解凍
+2. 中身をリポジトリ直下へ上書きアップロード
+3. `src` `assets` `index.html` `manifest.webmanifest` `sw.js` `.nojekyll` が見える状態にする
+4. Safari で再読み込み
+5. ホーム画面追加済みなら、いったん削除して再追加
