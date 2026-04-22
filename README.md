@@ -1,14 +1,19 @@
-{
-  "name": "NoirStock",
-  "short_name": "NoirStock",
-  "description": "iPhone向けオフライン在庫・販売管理PWA",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#0a0a0c",
-  "theme_color": "#0a0a0c",
-  "lang": "ja",
-  "icons": [
-    {"src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png"}
-  ]
-}
+# NoirStock PWA v5
+
+UI刷新版の実装です。
+
+## この版で実装したもの
+- 黒基調の高忠実度UIへ刷新
+- ホーム / 在庫 / 登録 / 販売 / 分析 の5タブ構成
+- 在庫一覧カードの強化
+- ステータス変更から販売入力への導線
+- 販売入力（OCR）画面のUI刷新
+- 分析画面のKPI / 推移 / 販売先別利益の可視化
+- 既存の JSON バックアップ / 移行 / 繰越 / CSV 出力は維持
+
+## GitHub Pages への反映
+1. この ZIP を解凍
+2. 中身をリポジトリ直下へ上書きアップロード
+3. `src` `assets` `index.html` `manifest.webmanifest` `sw.js` `.nojekyll` が見える状態にする
+4. Safari で再読み込み
+5. ホーム画面追加済みなら、いったん削除して再追加
