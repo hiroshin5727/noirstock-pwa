@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050608">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NoirStock">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="src/styles.css">
+  <title>NoirStock PRO v6.3</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand-wrap">
+        <div class="brand-row"><div class="brand">NoirStock</div><span class="pro-badge">PRO</span></div>
+        <div class="subtitle">Offline PWA</div>
+      </div>
+      <div class="header-actions">
+        <button id="installBtn" class="icon-btn hidden" title="ホーム画面に追加">追加</button>
+        <button id="headerExpenseBtn" class="icon-btn">経費</button>
+        <button id="headerReviewBtn" class="icon-btn">要確認</button>
+        <button id="headerSettingsBtn" class="icon-btn">設定</button>
+      </div>
+    </header>
+
+    <main class="view-root">
+      <section id="homeView" class="view active">
+        <div class="screen-title-row">
+          <div class="screen-title-block"><h1>ホーム</h1><p>今日の作業と数字をすぐ確認</p></div>
+          <div class="offline-indicator"><span id="offlineLabel">オンライン</span><span class="offline-dot" id="offlineDot"></span></div>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-label">今日の売上</div>
+            <div class="kpi-value" id="homeTodaySales">¥0</div>
+            <div class="kpi-sub" id="homeTodaySalesCount">0件</div>
+            <div class="mini-chart" id="homeChartSales"></div>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-label">今月の実利益</div>
+            <div class="kpi-value" id="homeMonthProfit">¥0</div>
+            <div class="kpi-sub" id="homeMonthProfitSub">利益率 0%</div>
+            <div class="mini-bars" id="homeChartProfit"></div>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-label">利益率</div>
+            <div class="kpi-value" id="homeMonthMargin">0%</div>
+            <div class="kpi-sub" id="homeMonthMarginSub">前月比 -</div>
+            <div class="mini-chart" id="homeChartMargin"></div>
+          </article>
+        </div>
+
+        <section class="panel attention-panel">
+          <div class="panel-head"><h2>要確認</h2><button class="link-btn" id="homeOpenReviewBtn">一覧</button></div>
+          <div id="homeAttentionList" class="attention-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>最近の活動</h2><button class="link-btn" id="homeAllActivityBtn">すべて見る</button></div>
+          <div id="homeRecentActivity" class="activity-list"></div>
+        </section>
+
+        <section class="quick-grid">
+          <button class="quick-tile quick-green" data-nav="register"><strong>在庫追加</strong><span>商品を登録</span></button>
+          <button class="quick-tile quick-blue" id="homeQuickSaleBtn"><strong>販売入力</strong><span>販売を登録</span></button>
+          <button class="quick-tile quick-cyan" id="homeOcrBtn"><strong>OCR読取</strong><span>証跡画像を解析</span></button>
+          <button class="quick-tile quick-purple" id="quickBackupBtn"><strong>バックアップ</strong><span>JSON保存</span></button>
+        </section>
+      </section>
+
+      <section id="inventoryView" class="view">
+        <div class="screen-title-row">
+          <div class="screen-title-block"><h1>在庫</h1><p>在庫一覧と状態変更</p></div>
+          <button class="icon-pill" data-nav="register">新規登録</button>
+        </div>
+        <div class="search-row">
+          <label class="search-shell"><span>⌕</span><input id="inventorySearch" placeholder="商品名・ブランド・SKUで検索"></label>
+          <select id="inventorySort" class="sort-select">
+            <option value="updated">更新日が新しい順</option>
+            <option value="profit">見込み利益が高い順</option>
+            <option value="purchase">仕入れ値が高い順</option>
+          </select>
+        </div>
+        <div id="inventoryStatusChips" class="chip-row"></div>
+        <div class="inventory-meta"><span id="inventoryCountLabel">0件</span><span class="muted">在庫主語で販売へつながります</span></div>
+        <div id="inventoryList" class="inventory-list"></div>
+      </section>
+
+      <section id="registerView" class="view">
+        <div class="screen-title-row">
+          <div class="screen-title-block"><h1>登録</h1><p>新規在庫を追加 / 編集</p></div>
+          <div class="header-actions inline-actions"><button id="inventoryResetBtn" class="ghost">新規</button><span id="inventoryEditingBadge" class="inline-badge hidden">編集中</span></div>
+        </div>
+        <section class="panel">
+          <form id="inventoryForm" class="form-grid modern-form">
+            <input type="hidden" name="id">
+            <input type="hidden" name="createdAt">
+            <label><span>商品名</span><input name="name" required maxlength="120"></label>
+            <label><span>ブランド</span><input name="brand" maxlength="80"></label>
+            <label><span>カテゴリー</span><select name="category"><option value="">選択</option><option>トップス</option><option>ワンピース</option><option>パンツ</option><option>スカート</option><option>アウター</option><option>バッグ</option><option>靴</option><option>小物</option><option>その他</option></select></label>
+            <label><span>サイズ</span><input name="size" maxlength="30"></label>
+            <label><span>色</span><input name="color" maxlength="30"></label>
+            <label><span>状態</span><select name="condition"><option value="">選択</option><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option></select></label>
+            <label><span>ステータス</span><select name="status"><option>在庫中</option><option>出品中</option><option>販売済</option><option>保留</option></select></label>
+            <label><span>仕入日</span><input type="date" name="purchaseDate"></label>
+            <label><span>仕入れ値</span><input type="number" name="purchasePrice" min="0" step="1"></label>
+            <label><span>数量</span><input type="number" name="quantity" min="1" step="1" value="1"></label>
+            <label><span>ロット名</span><input name="lotName" maxlength="80"></label>
+            <label><span>保管場所</span><input name="location" maxlength="60"></label>
+            <label><span>仕入先</span><input name="supplier" maxlength="80"></label>
+            <label><span>前年繰越</span><select name="carryOverYear"><option value="">なし</option><option>2024</option><option>2025</option><option>2026</option><option>2027</option></select></label>
+            <label><span>出品予定価格</span><input type="number" name="plannedPrice" min="0" step="1"></label>
+            <label class="full"><span>写真</span><input type="file" id="inventoryPhotoInput" accept="image/*"></label>
+            <div class="full media-preview-row">
+              <img id="inventoryPhotoPreview" class="media-preview hidden" alt="商品写真プレビュー">
+              <button type="button" id="removeInventoryPhotoBtn" class="ghost hidden">写真を削除</button>
+            </div>
+            <label class="full"><span>メモ</span><textarea name="memo" rows="3" maxlength="300"></textarea></label>
+            <div class="full form-actions"><button type="submit" class="primary wide">在庫を保存</button></div>
+          </form>
+        </section>
+      </section>
+
+      <section id="saleView" class="view">
+        <div class="screen-title-row">
+          <div class="screen-title-block"><h1>販売</h1><p>在庫から販売済みへ。販売確定は入力シートで行います</p></div>
+          <div class="header-actions inline-actions"><button id="saleOpenSheetBtn" class="primary">販売入力を開く</button></div>
+        </div>
+        <section class="panel">
+          <div class="panel-head"><h2>販売導線</h2><span class="muted">在庫カードのステータス変更からも同じ入力シートが開きます</span></div>
+          <div class="stack-list compact">
+            <div class="review-card">
+              <div class="card-row"><strong>1. 在庫から販売済みに変更</strong><span class="inline-badge">在庫主語</span></div>
+              <div class="muted">在庫一覧で「販売済」を選ぶと、販売入力シートが自動で表示されます。</div>
+            </div>
+            <div class="review-card">
+              <div class="card-row"><strong>2. 販売情報を入力</strong><span class="inline-badge">共通計算</span></div>
+              <div class="muted">販売日、単価、手数料、送料、商品別追加経費を入力すると、実利益と利益率を共通ロジックで再計算します。</div>
+            </div>
+            <div class="review-card">
+              <div class="card-row"><strong>3. 販売履歴と分析に反映</strong><span class="inline-badge">即時反映</span></div>
+              <div class="muted">販売確定後は在庫残数とステータスを更新し、販売履歴・分析へ即時反映します。</div>
+            </div>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>販売履歴</h2><input id="salesSearch" class="search-inline" placeholder="商品名・販売先で検索"></div>
+          <div id="salesList" class="stack-list"></div>
+        </section>
+      </section>
+
+      <section id="analyticsView" class="view">
+        <div class="screen-title-row">
+          <div class="screen-title-block"><h1>分析</h1><p>利益率と推移を可視化</p></div>
+          <div class="header-actions inline-actions"><select id="summaryYearSelect" class="sort-select compact"></select></div>
+        </div>
+        <div class="period-row">
+          <button class="period-pill active" data-summary-period="month">今月</button><button class="period-pill" data-summary-period="quarter">3か月</button><button class="period-pill" data-summary-period="year">年間</button><button class="period-pill" data-summary-period="all">全期間</button>
+        </div>
+        <div class="kpi-grid analytics-kpi">
+          <article class="kpi-card"><div class="kpi-label">売上</div><div class="kpi-value" id="sumSales">-</div><div class="kpi-sub" id="sumSalesSub">-</div><div class="mini-chart" id="summaryMiniSales"></div></article>
+          <article class="kpi-card"><div class="kpi-label">実利益</div><div class="kpi-value" id="sumNet">-</div><div class="kpi-sub" id="sumNetSub">-</div><div class="mini-bars" id="summaryMiniNet"></div></article>
+          <article class="kpi-card"><div class="kpi-label">利益率</div><div class="kpi-value" id="sumMargin">-</div><div class="kpi-sub" id="sumMarginSub">-</div><div class="mini-chart" id="summaryMiniMargin"></div></article>
+        </div>
+        <section class="panel"><div class="panel-head"><h2>売上・実利益の推移</h2><span class="muted" id="trendUnitLabel">単位：¥</span></div><div id="trendChart" class="trend-chart"></div></section>
+        <section class="panel"><div class="panel-head"><h2>利益上位商品</h2><button id="summaryTopProfitBtn" class="link-btn">販売へ</button></div><div id="topProfitList" class="stack-list"></div></section>
+        <section class="panel"><div class="panel-head"><h2>販売先別利益</h2><button id="summaryPlatformBtn" class="link-btn">販売へ</button></div><div id="summaryBreakdown" class="platform-breakdown"></div></section>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button data-nav="home" class="tab active"><span>⌂</span><em>ホーム</em></button>
+      <button data-nav="inventory" class="tab"><span>◫</span><em>在庫</em></button>
+      <button data-nav="register" class="tab"><span>＋</span><em>登録</em></button>
+      <button data-nav="sale" class="tab"><span>🛒</span><em>販売</em></button>
+      <button data-nav="analytics" class="tab"><span>▥</span><em>分析</em></button>
+    </nav>
+  </div>
+
+  <div id="saleSheetModal" class="modal sheet-modal hidden">
+    <div class="sheet-card">
+      <div class="sheet-header">
+        <div>
+          <div id="saleSheetTitle" class="modal-title">販売入力シート</div>
+          <div id="saleSheetSubtitle" class="muted">在庫の状態変更から販売確定までを一本化</div>
+        </div>
+        <div class="inline-actions wrap">
+          <button id="saleResetBtn" class="ghost" type="button">新規</button>
+          <button class="ghost close-modal" data-close="saleSheetModal" type="button">閉じる</button>
+          <span id="saleEditingBadge" class="inline-badge hidden">編集中</span>
+        </div>
+      </div>
+      <div class="sheet-scroll">
+        <section class="panel sale-hero panel-in-sheet">
+          <div id="saleProductSummary" class="sale-product-summary empty-state">対象商品を選択してください</div>
+          <form id="saleForm" class="form-grid modern-form">
+            <input type="hidden" name="id">
+            <input type="hidden" name="createdAt">
+            <input type="hidden" name="sourceStatus">
+            <input type="hidden" name="ocrRecordId">
+            <label class="full"><span>対象商品</span><select name="inventoryId" id="saleInventorySelect" required></select></label>
+            <div class="stack-card">
+              <div class="stack-title">販売情報</div>
+              <label><span>販売日</span><input type="datetime-local" name="saleDate" required></label>
+              <label><span>販売単価</span><input type="number" name="salePrice" min="0" step="1" required></label>
+              <label><span>販売手数料</span><input type="number" name="platformFee" min="0" step="1" value="0"></label>
+              <label><span>送料</span><input type="number" name="shippingFee" min="0" step="1" value="0"></label>
+              <label><span>販売先</span><select name="platform"><option>メルカリ</option><option>ラクマ</option><option>ヤフオク</option><option>店頭</option><option>その他</option></select></label>
+              <label><span>販売数量</span><input type="number" name="saleQty" min="1" step="1" value="1"></label>
+              <label><span>商品別追加経費</span><input type="number" name="itemExpense" min="0" step="1" value="0"></label>
+              <label><span>実受取額</span><input type="number" name="netAmount" min="0" step="1"></label>
+              <label><span>商品ID</span><input name="externalItemId" maxlength="60"></label>
+              <label><span>入金方法</span><select name="paymentMethod"><option>売上金</option><option>振込</option><option>現金</option><option>その他</option></select></label>
+            </div>
+            <label class="full"><span>取引画面テキスト</span><textarea id="saleParseText" rows="4" placeholder="メルカリ取引画面のテキストを貼り付けると候補を提案します"></textarea></label>
+            <label class="full"><span>販売証跡画像</span><input type="file" id="saleProofInput" accept="image/*"></label>
+            <div class="full media-preview-row">
+              <img id="saleProofPreview" class="media-preview hidden" alt="販売証跡プレビュー">
+              <button type="button" id="removeSaleProofBtn" class="ghost hidden">証跡画像を削除</button>
+            </div>
+            <div class="full inline-actions wrap">
+              <button type="button" id="ocrRetryBtn" class="primary">画像OCRを実行</button>
+              <button type="button" id="parseSaleTextBtn" class="secondary">貼り付け文字を解析</button>
+              <button type="button" id="fillNetAmountBtn" class="ghost">受取額を自動計算</button>
+            </div>
+            <section class="full panel nested-panel">
+              <div class="panel-head"><h2>OCR候補 / 解析候補</h2><button type="button" id="applyAllCandidatesBtn" class="link-btn">すべて適用</button></div>
+              <div id="ocrProgressLine" class="ocr-progress-line muted">OCR未実行</div>
+              <div id="ocrCandidateWrap" class="chip-cloud"></div>
+              <div class="muted">v6.3では販売証跡画像OCRを実装しています。ブラウザOCRが利用できない端末では、iPhoneのLive Textで文字をコピーし、上の取引画面テキスト欄に貼り付けて解析できます。</div>
+            </section>
+            <section class="full sale-result-card">
+              <div class="panel-head"><h2>計算結果</h2><span id="saleCalcContext" class="muted">共通計算エンジン</span></div>
+              <div class="sale-result-grid">
+                <div><span>実利益</span><strong id="salePreviewReal">-</strong></div>
+                <div><span>利益率</span><strong id="salePreviewMargin">-</strong></div>
+              </div>
+              <div id="saleCalcBreakdown" class="breakdown-grid"></div>
+            </section>
+            <label class="full"><span>販売メモ</span><textarea name="note" rows="2" maxlength="240"></textarea></label>
+            <div class="full form-actions sheet-actions"><button type="submit" class="primary wide positive">販売を確定</button></div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="expenseModal" class="modal hidden">
+    <div class="modal-card wide-modal">
+      <div class="panel-head"><div class="modal-title">共通経費</div><button type="button" class="ghost close-modal" data-close="expenseModal">閉じる</button></div>
+      <form id="expenseForm" class="form-grid modern-form">
+        <input type="hidden" name="id"><input type="hidden" name="createdAt">
+        <label><span>日付</span><input type="date" name="date" required></label>
+        <label><span>金額</span><input type="number" name="amount" min="0" step="1" required></label>
+        <label><span>区分</span><select name="category"><option>梱包資材</option><option>交通費</option><option>クリーニング</option><option>備品</option><option>許認可</option><option>研修費</option><option>通信費</option><option>その他</option></select></label>
+        <label><span>支払方法</span><select name="method"><option>現金</option><option>クレカ</option><option>振込</option><option>売上金</option><option>その他</option></select></label>
+        <label class="full"><span>内容</span><input name="title" maxlength="120" required></label>
+        <label class="full"><span>メモ</span><textarea name="memo" rows="2" maxlength="240"></textarea></label>
+        <div class="full inline-actions wrap"><button id="expenseResetBtn" type="button" class="ghost">新規</button><span id="expenseEditingBadge" class="inline-badge hidden">編集中</span></div>
+        <div class="full form-actions"><button type="submit" class="primary wide">経費を保存</button></div>
+      </form>
+      <div class="panel-head"><h2>経費一覧</h2><input id="expenseSearch" class="search-inline" placeholder="内容・区分で検索"></div>
+      <div id="expenseList" class="stack-list"></div>
+    </div>
+  </div>
+
+  <div id="reviewModal" class="modal hidden">
+    <div class="modal-card wide-modal">
+      <div class="panel-head"><div class="modal-title">要確認リスト</div><button type="button" class="ghost close-modal" data-close="reviewModal">閉じる</button></div>
+      <div id="reviewList" class="stack-list"></div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-card wide-modal">
+      <div class="panel-head"><div class="modal-title">設定 / データ管理</div><button type="button" class="ghost close-modal" data-close="settingsModal">閉じる</button></div>
+      <div class="settings-stack">
+        <button id="backupBtn" class="secondary wide">v6.3 JSONバックアップを書き出す</button>
+        <button id="dataCheckBtn" class="secondary wide" type="button">現在データを検査する</button>
+        <label class="file-upload"><input type="file" id="restoreInput" accept=".json,application/json"><span>JSONを検査して復元（全置換）</span></label>
+        <label class="file-upload"><input type="file" id="migrationInput" accept=".json,application/json"><span>JSONを検査して追加取込</span></label>
+        <button id="migrationMergeBtn" class="secondary wide" type="button">読み込んだ移行JSONを追加取込</button>
+        <div id="migrationPreview" class="stack-list compact"></div>
+        <button id="inventoryCsvBtn" class="secondary wide">在庫CSVを書き出す</button>
+        <button id="salesCsvBtn" class="secondary wide">売上CSVを書き出す</button>
+        <button id="expensesCsvBtn" class="secondary wide">経費CSVを書き出す</button>
+        <button id="ledgerCsvBtn" class="secondary wide">帳簿CSVを書き出す</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal hidden">
+    <div class="modal-card">
+      <div id="confirmTitle" class="modal-title">確認</div>
+      <p id="confirmMessage" class="muted"></p>
+      <div class="form-actions">
+        <button id="confirmCancel" class="ghost">キャンセル</button>
+        <button id="confirmOk" class="primary">実行</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

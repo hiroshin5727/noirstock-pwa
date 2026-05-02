@@ -1,0 +1,2 @@
+NoirStock PWA v6.3.0
+販売証跡OCR / 候補提案UI / OCR失敗時フォールバック / JSON互換維持
